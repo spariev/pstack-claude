@@ -85,7 +85,48 @@ export const PORTABLE_ASSETS = [
 export const OWNED_DIRS = [
   `${SKILLS}/poteto-mode/references/agents`,
   `${SKILLS}/poteto-mode/references/licenses`,
+  `${PLUGIN}/vibe/skills`,
+  `${PLUGIN}/vibe/ai.mistral.vibe/agents`,
 ];
+
+// The adapter a Vibe plugin subagent needs where the shared agent file assumes
+// Claude Code: skills load through Vibe's `skill` tool from the pinned plugin
+// copy, never from Claude Code's plugin cache.
+const VIBE_AGENT_ADAPTER =
+  "You run on Mistral Vibe as a plugin subagent, spawned with the `task` tool. Load pstack skills with the `skill` " +
+  "tool by their namespaced name (for example `pstack:poteto-mode`); the skill files live in this plugin's pinned " +
+  "copy. Never search a Claude Code plugin cache for these skills; this plugin's copy is the one to read.";
+
+// Vibe caps a plugin subagent's description at 300 characters; the shared agent
+// files carry longer frontmatter, so this names the short form.
+const VIBE_AGENT_DESCRIPTIONS = {
+  "poteto-agent":
+    "Delegate subagent for code-writing and helper tasks spawned during a `/poteto-mode` run. Reads the `poteto-mode` skill in full before any work.",
+};
+
+// The Vibe subagent TOML derived from a shared plugin agent file: snake_case
+// keys (Vibe rejects camelCase), a description within its limit, and the agent
+// body as `instructions` after the Vibe adapter. JSON strings are valid TOML
+// basic strings, so JSON.stringify escapes every value safely.
+export function vibeAgentToml(text) {
+  const { data, body } = parseFrontmatter(text);
+  const name = data?.name;
+  if (typeof name !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
+    throw new Error(`agent file has no portable name: ${JSON.stringify(name)}`);
+  }
+  let description = typeof data?.description === "string" ? data.description : "";
+  if (description.length > 300) description = VIBE_AGENT_DESCRIPTIONS[name] ?? `${description.slice(0, 297)}...`;
+  const instructions = [VIBE_AGENT_ADAPTER, body.trim()].join("\n\n");
+  return [
+    "schema_version = 1",
+    'agent_type = "subagent"',
+    `display_name = ${JSON.stringify(name)}`,
+    `description = ${JSON.stringify(description)}`,
+    'safety = "neutral"',
+    `instructions = ${JSON.stringify(instructions)}`,
+    "",
+  ].join("\n");
+}
 
 // Replace the manifest's single "version" value, preserving all formatting.
 // Exactly one "version" field per manifest is a precondition: a second one
@@ -894,6 +935,28 @@ export function plan(root, models) {
     put(path, read(source));
   }
   put(`${PLUGIN}/LICENSE`, read("LICENSE"));
+  // The Mistral Vibe bundle is self-contained: Vibe rejects a plugin path that
+  // resolves outside the plugin directory, so the skills, the plugin agents,
+  // and the license are copied in rather than linked. The copy follows the
+  // plan, not the disk, so a stale or orphaned generated file in the shared
+  // tree never leaks into the bundle: on-disk files take their planned text,
+  // and the generator-owned directories contribute only their planned entries.
+  const skillsRoot = join(root, SKILLS);
+  const vibeSkills = `${PLUGIN}/vibe/skills`;
+  const isOwned = (rel) => OWNED_DIRS.some((dir) => rel === dir || rel.startsWith(`${dir}/`));
+  for (const file of walk(skillsRoot)) {
+    const rel = repoRelative(root, file);
+    if (isOwned(rel)) continue;
+    put(`${vibeSkills}/${rel.slice(SKILLS.length + 1)}`, current(rel));
+  }
+  for (const [rel, text] of Object.entries(files)) {
+    if (rel.startsWith(`${SKILLS}/`) && isOwned(rel)) put(`${vibeSkills}/${rel.slice(SKILLS.length + 1)}`, text);
+  }
+  put(`${PLUGIN}/vibe/LICENSE`, read("LICENSE"));
+  for (const entry of readdirSync(join(root, PLUGIN, "agents"))) {
+    if (!entry.endsWith(".md")) continue;
+    put(`${PLUGIN}/vibe/ai.mistral.vibe/agents/${entry.replace(/\.md$/, ".toml")}`, vibeAgentToml(read(`${PLUGIN}/agents/${entry}`)));
+  }
   return { files, ownedDirs: OWNED_DIRS };
 }
 

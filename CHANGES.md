@@ -2,6 +2,10 @@
 
 This file is the release changelog, with one `## <version> - <title>` entry per release, newest first. The Cursor-to-Claude rewrite rules live in [`tools/substitutions.json`](tools/substitutions.json), and the [sync boundary](CONTRIBUTING.md#the-sync-boundary) in `CONTRIBUTING.md` defines how a change to upstream's skill content is declared.
 
+## 0.9.135 - Mistral Vibe runtime
+
+pstack now ships a native [Mistral Vibe](https://github.com/mistralai/mistral-vibe) plugin bundle in [`plugins/pstack/vibe/`](plugins/pstack/vibe/plugin.json): an Agent Plugins 1.0 `plugin.json` with the `ai.mistral.vibe` extension (namespace `pstack`, so skills invoke as `/pstack:poteto-mode`), the shared skills copied in by the generator, the four plugin agents as `ai.mistral.vibe/agents/*.toml`, and the license. Install copies the directory to `~/.vibe/plugins/pstack`. Vibe has no session-start hook, so there is no automatic routing; invoke `poteto-mode` by name. The [Vibe mapping](plugins/pstack/skills/poteto-mode/references/vibe-tools.md) translates tools, transcripts, and model roles, and `setup-pstack`'s [runtime table](plugins/pstack/skills/setup-pstack/references/runtimes.md) gains a Vibe row with the sheet at `${VIBE_HOME:-$HOME/.vibe}/pstack-models.md`. [`tests/vibe.test.mjs`](tests/vibe.test.mjs) checks the bundle against Vibe's plugin rules; no live Vibe session has run.
+
 ## 0.9.134 - Fable 5.2 on Pi, Pi 1.5.1 as the oldest supported Pi
 
 On Pi, the `anthropic` provider's `fable` role runs `claude-fable-5-2`, where it ran `claude-fable-5-1`. A session on a provider that has no table of its own uses the `anthropic` table, so its `fable` role changes too. Claude Code sessions need no change, because Claude Code 2.1.321 moved its own `fable` alias to Fable 5.2. The model first appears in Pi 1.5.1's catalog. Pi 1.5.0 does not have it. It warns `Model "claude-fable-5-2" not found for provider "anthropic". Using custom model id.` and runs that ID with the context window, pricing, and thinking settings of the provider's default model. To stay on Fable 5.1, add the line `pi models: fable=anthropic/claude-fable-5-1` to the override sheet.

@@ -63,5 +63,11 @@
     "strongest": "muse-wonder-full-1.0",
     "worker": "muse-spark-1.3",
     "panel": ["muse-wonder-full-1.0", "muse-wonder-1.0", "muse-spark-1.3"]
+  },
+  "vibe": {
+    "default": "mistral-large-latest",
+    "strongest": "mistral-large-latest",
+    "worker": "devstral-2-latest",
+    "panel": ["mistral-large-latest", "devstral-2-latest", "mistral-medium-3.5", "ministral-8b-latest"]
   }
 }

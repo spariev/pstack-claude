@@ -1,6 +1,6 @@
 // Unit tests for the generator: the region model that stamps model policy into
 // skills, the version stamp, the validators, and the plan it writes from.
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
   cpSync,
@@ -463,8 +463,8 @@ describe("lead lines", () => {
     for (const text of ["# X\n\nA.\n", "# X\n\nA."]) expect(stampLeadLine(text, "A.")).toBe(text);
   });
 
-  test("Codex, Copilot, Muse, and Antigravity stamp a preamble on their noted skills, and Pi, MiniMax Code, OpenCode 2, Kimi Code CLI, OMP, and Grok Build stamp none", () => {
-    expect(RUNTIMES.map((r) => r.name)).toEqual(["Codex", "Pi", "GitHub Copilot", "Muse", "MiniMax Code", "Antigravity", "OMP", "Kimi Code CLI", "Grok Build", "OpenCode 2"]);
+  test("Codex, Copilot, Muse, and Antigravity stamp a preamble on their noted skills, and Pi, MiniMax Code, OpenCode 2, Kimi Code CLI, OMP, Grok Build, and Mistral Vibe stamp none", () => {
+    expect(RUNTIMES.map((r) => r.name)).toEqual(["Codex", "Pi", "GitHub Copilot", "Muse", "MiniMax Code", "Antigravity", "OMP", "Kimi Code CLI", "Grok Build", "OpenCode 2", "Mistral Vibe"]);
     expect(codex.preamble).toBe(
       "On Codex, read the [platform mapping](../poteto-mode/references/codex-tools.md), including its per-skill notes, before following this skill.",
     );
@@ -483,6 +483,7 @@ describe("lead lines", () => {
     expect(RUNTIMES.find((r) => r.name === "OpenCode 2").preamble).toBeNull();
     expect(RUNTIMES.find((r) => r.name === "OMP").preamble).toBeNull();
     expect(RUNTIMES.find((r) => r.name === "Grok Build").preamble).toBeNull();
+    expect(RUNTIMES.find((r) => r.name === "Mistral Vibe").preamble).toBeNull();
     expect([...leads.values()].flat().filter((line) => /(?:pi|minimax)-tools\.md/.test(line))).toEqual([]);
   });
 
@@ -527,6 +528,9 @@ describe("effort section", () => {
 });
 
 describe("plan, changes, apply", () => {
+  // Each test here copies the whole repository, including the generated vibe/
+  // bundle, so the CLI runs on a copy need more than the default 5s timeout.
+  setDefaultTimeout(60_000);
   const made = [];
   afterEach(() => {
     for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });

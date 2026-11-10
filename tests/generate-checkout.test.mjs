@@ -9,6 +9,8 @@ import { changes, plan, problems } from "../tools/generate.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
+// The copy includes the generated vibe/ bundle, so the git pass over the full
+// tree needs more than the default 5s timeout.
 test("an autocrlf checkout keeps generator inputs current and binary assets intact", () => {
   const root = mkdtempSync(join(tmpdir(), "pstack-generate-checkout-"));
   try {
@@ -33,4 +35,4 @@ test("an autocrlf checkout keeps generator inputs current and binary assets inta
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-});
+}, 60_000);

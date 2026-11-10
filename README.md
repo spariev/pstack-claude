@@ -3,7 +3,7 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buy-me-a-coffee&logoColor=white)](https://buymeacoffee.com/codenyer)
 [![Mentioned in Awesome Claude Code](https://awesome.re/mentioned-badge.svg)](https://github.com/hesreallyhim/awesome-claude-code)
 
-Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack) is an opinionated Cursor skill stack that improves agent outcomes. This is a port for Claude Code, Codex, Pi, GitHub Copilot, Muse, and other agent harnesses. It tracks upstream and also carries named policy forks, each declared in [`tools/forks.json`](tools/forks.json).
+Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/main/pstack) is an opinionated Cursor skill stack that improves agent outcomes. This is a port for Claude Code, Codex, Pi, GitHub Copilot, Muse, Mistral Vibe, and other agent harnesses. It tracks upstream and also carries named policy forks, each declared in [`tools/forks.json`](tools/forks.json).
 
 Tell `poteto-mode` your goal and it will invoke the correct workflow for the task. It keeps your code concise, simple and verified.
 
@@ -183,11 +183,25 @@ This installs the native Antigravity plugin bundle (`skills`, `agents`, and `Ses
 
 </details>
 
+<details>
+<summary><strong>Mistral Vibe</strong></summary>
+
+Run in your terminal:
+
+```shell
+git clone https://github.com/michael-denyer/pstack-claude
+cp -R pstack-claude/plugins/pstack/vibe ~/.vibe/plugins/pstack
+```
+
+This installs the native Vibe plugin bundle: an Agent Plugins 1.0 `plugin.json` with the `ai.mistral.vibe` extension, the shared skills, and the plugin subagents. Vibe loads user plugins from `~/.vibe/plugins/` in every session; start a new session or run `/reload-plugins`, then check `/plugins`. Invoke a skill with `/pstack:<name>` (for example `/pstack:poteto-mode`). Vibe pins a plugin's content for the session, so to update, copy over the directory and run `/reload-plugins`. Vibe has no session-start hook, so there is no automatic routing: ask for `poteto-mode` by name. The [Vibe mapping](plugins/pstack/skills/poteto-mode/references/vibe-tools.md) translates tools and model roles. The [Other harnesses](#other-harnesses) `~/.agents/skills/` install also works, since Vibe scans that directory.
+
+</details>
+
 <a id="other-harnesses"></a>
 <details>
 <summary><strong>Other harnesses</strong></summary>
 
-Gemini CLI, Prime Agent, and skills-only Codex installs read skills from `~/.agents/skills/`. Run in your terminal:
+Gemini CLI, Prime Agent, Mistral Vibe, and skills-only Codex installs read skills from `~/.agents/skills/`. Run in your terminal:
 
 ```shell
 git clone https://github.com/michael-denyer/pstack-claude
@@ -205,7 +219,7 @@ To update, run `git pull` in the clone, then run the `for` loop again to link sk
 
 ### Configure
 
-pstack provides automatic routing on Claude Code, Codex, GitHub Copilot, Muse, MiniMax Code, Antigravity, Pi, Kimi Code CLI, OMP, and OpenCode 2. The runtimes deliver the instruction at different points: Kimi adds it while the plugin is enabled, OMP adds it before each main-agent turn, and OpenCode adds it at each model step in root sessions. Grok Build exposes a routing hint through a skill description; the model may not follow it. Codex requires hook trust through `/hooks`, and Muse requires `muse plugins approve pstack`. Other harnesses have no automatic routing.
+pstack provides automatic routing on Claude Code, Codex, GitHub Copilot, Muse, MiniMax Code, Antigravity, Pi, Kimi Code CLI, OMP, and OpenCode 2. The runtimes deliver the instruction at different points: Kimi adds it while the plugin is enabled, OMP adds it before each main-agent turn, and OpenCode adds it at each model step in root sessions. Grok Build exposes a routing hint through a skill description; the model may not follow it. Codex requires hook trust through `/hooks`, and Muse requires `muse plugins approve pstack`. Mistral Vibe and the other harnesses have no automatic routing: Vibe's hooks cover tool calls and agent turns only, so ask for `poteto-mode` by name.
 
 Run `setup-pstack` to turn automatic routing on or off, change model defaults, or set a reasoning effort per role (`arena runners: opus @xhigh, fable @max`). On OMP, the session hook setting applies globally across profiles; on Kimi, enable or disable the plugin to control routing. See the [routing reference](docs/reference.md#automatic-routing).
 

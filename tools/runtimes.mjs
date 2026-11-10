@@ -118,6 +118,20 @@ export const RUNTIMES = [
     manifest: "package.json",
     validate: ({ manifest, pathExists }) => validateOpenCodePackage(manifest, { pathExists }),
   },
+  {
+    name: "Mistral Vibe",
+    key: "vibe",
+    mapping: "vibe-tools.md",
+    modelNames: vibeModelNamesSection,
+    checkModels: tierExamples("vibe"),
+    // Vibe loads pstack as a native Agent Plugins 1.0 plugin bundled under
+    // vibe/ (skills and subagents copied in, since Vibe rejects plugin paths
+    // that resolve outside the plugin directory). Its hooks cover tool calls
+    // and agent turns only, so there is no hooks file and no automatic
+    // routing: poteto-mode is invoked as /pstack:poteto-mode by name.
+    manifest: `${PLUGIN}/vibe/plugin.json`,
+    validate: ({ manifest, read, pathExists, agentSkills }) => validateVibeManifest(manifest, { read, pathExists, agentSkills }),
+  },
 ].map((runtime) => ({
   ...runtime,
   tools: `${SKILLS}/poteto-mode/references/${runtime.mapping}`,
@@ -619,4 +633,72 @@ export function grokModelNamesSection(models) {
     "Report when the available dispatch cannot provide that diversity.\n\n" +
     "`/setup-pstack` writes the sheet. Choose only models the session exposes."
   );
+}
+
+// Mistral Vibe reads pstack as a native Agent Plugins 1.0 plugin: a
+// plugin.json with the 1.0.0 $schema and the ai.mistral.vibe extension, skills
+// copied under vibe/skills/, subagents as ai.mistral.vibe/agents/*.toml. Vibe
+// rejects unknown manifest fields, a non-1.0.0 $schema, and a reserved
+// namespace, and runs no session-start hook for the plugin (its hook types
+// cover tool calls and agent turns only), so the bundle ships no hooks.toml.
+export const VIBE_BUNDLE = `${PLUGIN}/vibe`;
+const VIBE_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
+const VIBE_TOP_LEVEL_FIELDS = ["$schema", "name", "version", "description", "author", "homepage", "repository", "license", "keywords", "extensions"];
+const VIBE_RESERVED_NAMESPACES = ["agent", "agents", "collaboration", "file_system", "process", "self", "skill", "subagent", "vibe"];
+
+export function validateVibeManifest(manifest, { read, pathExists, agentSkills }) {
+  const at = `${VIBE_BUNDLE}/plugin.json`;
+  if (manifest.$schema !== VIBE_SCHEMA) throw new Error(`${at}: $schema must be exactly ${VIBE_SCHEMA}`);
+  for (const key of Object.keys(manifest)) {
+    if (!VIBE_TOP_LEVEL_FIELDS.includes(key)) throw new Error(`${at}: Vibe rejects unknown top-level field "${key}"`);
+  }
+  if (manifest.name !== "pstack") throw new Error(`${at}: name must be "pstack", got "${manifest.name}"`);
+  if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(manifest.name) || manifest.name.includes("--") || manifest.name.includes("..") || manifest.name.length > 64) {
+    throw new Error(`${at}: name "${manifest.name}" is not a valid plugin name`);
+  }
+  if (typeof manifest.version !== "string" || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+    throw new Error(`${at}: version "${manifest.version}" is not MAJOR.MINOR.PATCH`);
+  }
+  const ext = manifest.extensions?.["ai.mistral.vibe"];
+  if (!ext || ext.schemaVersion !== 1) throw new Error(`${at}: extensions."ai.mistral.vibe".schemaVersion must be 1`);
+  const namespace = ext.toolNamespace ?? manifest.name.replace(/[^a-zA-Z0-9_$]/g, "_");
+  if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(namespace)) throw new Error(`${at}: toolNamespace "${namespace}" is not a valid identifier`);
+  if (VIBE_RESERVED_NAMESPACES.includes(namespace)) throw new Error(`${at}: toolNamespace "${namespace}" is reserved`);
+  // The bundle's skills are copies of the shared tree, since Vibe rejects a
+  // plugin path that resolves outside the plugin directory.
+  const shared = agentSkills(SKILLS).map((skill) => skill.name).sort();
+  const bundled = agentSkills(`${VIBE_BUNDLE}/skills`).map((skill) => skill.name).sort();
+  if (!isDeepStrictEqual(bundled, shared)) {
+    throw new Error(`${at}: vibe/skills does not mirror the shared skills tree (${bundled.length} bundled, ${shared.length} shared)`);
+  }
+  if (!pathExists(`${VIBE_BUNDLE}/LICENSE`)) throw new Error(`${at}: the bundle ships no LICENSE`);
+  const potetoAgent = `${VIBE_BUNDLE}/ai.mistral.vibe/agents/poteto-agent.toml`;
+  if (!pathExists(potetoAgent)) throw new Error(`${at}: no plugin subagent at ${potetoAgent}`);
+  const toml = read(potetoAgent);
+  for (const key of ["schema_version", "agent_type", "description", "instructions"]) {
+    if (!new RegExp(`^${key} = `, "m").test(toml)) throw new Error(`${potetoAgent}: missing ${key}`);
+  }
+  // Vibe rejects camelCase keys in plugin subagent files.
+  for (const line of toml.split("\n")) {
+    const key = line.match(/^([A-Za-z_][A-Za-z0-9_]*) = /)?.[1];
+    if (key && key !== key.toLowerCase()) throw new Error(`${potetoAgent}: camelCase key "${key}" is rejected`);
+  }
+}
+
+export function vibeModelNamesSection(models) {
+  return tierModelNamesSection(models, {
+    label: "Mistral Vibe",
+    block: models.vibe,
+    worker: "fast Vibe coding model",
+    panel: (list) =>
+      `on Mistral Vibe is ${list}. If your Vibe configuration reaches only one model family, vary the thinking level ` +
+      "and note in the verdict that diversity was reduced.",
+    dispatch:
+      "Vibe's `task` tool takes no per-call `model`: it dispatches `agent: \"pstack:<name>\"` and the subagent runs its " +
+      "own `active_model` or the session model (`/model`). The plugin's subagents ship no `active_model`, so role " +
+      "models apply through the session and the sheet. The model sheet is `${VIBE_HOME:-$HOME/.vibe}/pstack-models.md`; " +
+      `read it before a skill that needs a role model (${roleSkills(models).map(code).join(", ")}). ` +
+      "`inherit-parent` and `auto` do not exist on Vibe; there is no `model` field to omit.",
+    ids: "Vibe model aliases",
+  });
 }

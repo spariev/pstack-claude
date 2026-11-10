@@ -17,6 +17,7 @@ The role lines are the same everywhere. What differs is the sheet path, how the 
 | OMP | `~/.omp/pstack-models.md` (global across profiles; hook only) | read by the OMP plugin for routing | `omp models --kind chat`; model roles use OMP configuration, see [omp-tools.md](../../poteto-mode/references/omp-tools.md#model-names) | installation, skill access, and the routing toggle checked on OMP 18.16.0 with a synthetic provider; model compliance untested |
 | Grok Build | `${GROK_HOME:-~/.grok}/pstack-models.md` | read by the agent before a role-model skill; the `session hook` line does not control the Grok routing hint | the `spawn_subagent` tool's advertised models; use overrides only at the user's explicit request; see [grok.md](../../poteto-mode/references/grok.md#model-names) | synthetic-provider plugin and skill loading tested |
 | OpenCode 2 | `${XDG_CONFIG_HOME:-~/.config}/opencode/pstack-models.md` | add the path to the `instructions` array in `opencode.jsonc`; the plugin reads the hook setting directly | the `models` command in the session; see [opencode-tools.md](../../poteto-mode/references/opencode-tools.md#model-names) | native skill activation and routing tested on 2.2.5 with a loopback provider |
+| Mistral Vibe | `${VIBE_HOME:-$HOME/.vibe}/pstack-models.md` | read by the agent before a role-model skill; Vibe has no session-start hook, so the `session hook` line does not apply | `/model` in the session and the aliases configured in `config.toml`; see [vibe-tools.md](../../poteto-mode/references/vibe-tools.md#model-names) | plugin packaging checked by `tests/vibe.test.mjs`; no live session |
 | Gemini CLI | `~/.gemini/pstack-models.md` | `@~/.gemini/pstack-models.md` in `~/.gemini/GEMINI.md` | the `model` slash command in the session | from published docs, no live session |
 | Prime Agent | no documented sheet path; Prime's configuration chooses models | | | no live session |
 
@@ -45,6 +46,10 @@ Follow [the Copilot setup](../copilot.md); its opening names the steps it replac
 
 - **Steps 3 and 5 (effort, validate).** The `subagent` tool has no effort field. Skip the effort questions in step 3 and effort validation in step 5, and omit the `default effort` line and `@<level>` suffixes. A variant the user asks for goes in the model ID as `providerID/modelID#variant`.
 - **Step 4 (session hook).** The native plugin adds the mandate to root-session model requests.
+
+## Mistral Vibe
+
+- **Steps 3, 4, and 5 (effort, session hook, validate).** Vibe's `task` tool takes no `model` or effort parameter, and there is no session-start hook. Skip step 4, the effort questions in step 3, and effort validation in step 5; omit the `default effort` and `session hook` lines and `@<level>` suffixes from the sheet. Role models apply through the session's `/model` and the sheet; run diverse-model panels on the session model and note in the verdict when diversity was reduced.
 
 ## Antigravity
 
